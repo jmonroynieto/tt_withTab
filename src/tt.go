@@ -383,7 +383,7 @@ func main() {
 	typer.ShowWpm = showWpm
 
 	if timeout != -1 {
-		timeout *= 1E9
+		timeout *= 1e9
 	}
 
 	var tests [][]segment
@@ -415,7 +415,7 @@ func main() {
 				idx--
 			}
 		case TyperComplete:
-			cpm := int(float64(ncorrect) / (float64(t) / 60E9))
+			cpm := int(float64(ncorrect) / (float64(t) / 60e9))
 			wpm := cpm / 5
 			accuracy := float64(ncorrect) / float64(nerrs+ncorrect) * 100
 
