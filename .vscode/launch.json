@@ -20,7 +20,7 @@
             "mode": "auto",
             "program": "${workspaceFolder}/src",
             "console": "integratedTerminal",
-            "args": ["-raw","--quotes", "test.json", "-noskip"],
+            "args": ["-raw","--quotes", "chartest.json", "-noskip"],
         },
         {
             "name": "realRaw",
