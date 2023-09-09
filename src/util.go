@@ -91,7 +91,7 @@ func wordWrapBytes(s []rune, n int, isRaw bool) {
 		}
 		//check if we need to wrap
 		if sz > n && sp != 0 {
-			if isRaw && s[sz-1] != '\n'{
+			if isRaw && s[sz-1] != '\n' {
 				s = append(s[:sp+1], append([]rune{lineEnd}, s[sp+1:]...)...)
 			} else {
 				s[sp] = lineEnd
@@ -183,6 +183,16 @@ func drawStringAtCenter(scr tcell.Screen, s string, style tcell.Style) {
 
 	x := (sw - nc) / 2
 	y := (sh - nr) / 2
+
+	drawString(scr, x, y, s, -1, style)
+}
+
+func drawStringAsTitle(scr tcell.Screen, s string, style tcell.Style) {
+	nc, nr := calcStringDimensions(s)
+	sw, sh := scr.Size()
+
+	x := (sw - nc) / 2
+	y := sh - (sh - nr)
 
 	drawString(scr, x, y, s, -1, style)
 }
