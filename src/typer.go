@@ -379,8 +379,13 @@ func (t *typer) processSegment(excersice segment, timeLimit time.Duration, start
 			default:
 			}
 
-			time.Sleep(time.Duration(5e8))
-			t.Scr.PostEventWait(nil)
+			time.Sleep(time.Duration(1e8))
+			err := t.Scr.PostEvent(nil)
+			if err != nil {
+				//print warning to std error with standatd library only
+				fmt.Fprintf(os.Stderr, "error posting nil event: %v", err)
+			}
+
 		}
 	}
 
@@ -407,24 +412,25 @@ func (t *typer) processSegment(excersice segment, timeLimit time.Duration, start
 listening:
 	for {
 		ev := t.Scr.PollEvent()
-		if t.ShowWpm {
-			select {
-			case <-wpsTicker.C:
-				charsNow = pointer
-				charsP2S := charsNow - charsBefore
-				//wpm is calculated based on the groups of 5characters typed in 2 seconds
-				// x chars/2 seconds * 60 sec*word/5 chars*min
-				wpm := charsP2S * 6
-				drawString(t.Scr, x+nc/2-4, y-2, fmt.Sprintf("WPM: %-10d\n", wpm), -1, t.defaultStyle)
-				charsBefore = charsNow
-				continue listening
-
-			default:
-				if ev == nil {
+		if ev == nil {
+			if t.ShowWpm {
+				select {
+				case <-wpsTicker.C:
+					charsNow = pointer
+					charsP2S := charsNow - charsBefore
+					//wpm is calculated based on the groups of 5characters typed in 2 seconds
+					// x chars/2 seconds * 60 sec*word/5 chars*min
+					wpm := charsP2S * 6
+					drawString(t.Scr, x+nc/2-4, y-2, fmt.Sprintf("WPM: %-10d\n", wpm), -1, t.defaultStyle)
+					charsBefore = charsNow
 					continue listening
+
+				default:
+
+					continue listening
+
 				}
 			}
-		} else if ev == nil {
 			continue listening
 		}
 		if !started {
