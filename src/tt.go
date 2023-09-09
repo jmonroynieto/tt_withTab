@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -117,14 +117,14 @@ func showReport(scr tcell.Screen, cpm, wpm int, accuracy float64, attribution st
 	if len(mistakes) > 0 {
 		mistakeStr = "\nMistakes:    "
 		for i, m := range mistakes {
-			mistakeStr += m.Word
+			mistakeStr += fmt.Sprintf("%q", m.Word)
 			if i != len(mistakes)-1 {
 				mistakeStr += ", "
 			}
 		}
 	}
 
-	report := fmt.Sprintf("WPM:         %d\nCPM:         %d\nAccuracy:    %.2f%%%s%s", wpm, cpm, accuracy, mistakeStr, attribution)
+	report := fmt.Sprintf("WPM:         %d\nCPM:         %d\nAccuracy:    %.2f%%\n%s%s", wpm, cpm, accuracy, wordWrap(mistakeStr, 20), attribution)
 
 	drawStringAtCenter(scr, report, tcell.StyleDefault)
 	drawStringAsTitle(scr, "Press ESC, SPACE, or ENTER to continue.", titleStyle)
@@ -317,7 +317,7 @@ func main() {
 
 	if listFlag != "" {
 		prefix := listFlag + "/"
-		for path, _ := range packedFiles {
+		for path := range packedFiles {
 			if strings.Index(path, prefix) == 0 {
 				_, f := filepath.Split(path)
 				fmt.Println(f)
@@ -344,11 +344,25 @@ func main() {
 			wsz = sw - 8
 		}
 
-		s = regexp.MustCompile("\\s+").ReplaceAllString(s, " ")
-		return strings.Replace(
-			wordWrap(strings.Trim(s, " "), wsz),
-			"\n", " \n", -1)
+		s = regexp.MustCompile(`\s+`).ReplaceAllString(s, ` `)
+		X := wordWrap(strings.TrimSpace(s), wsz)
+		return X
 	}
+
+	rawflow := func(s string) string {
+		sw, sh := scr.Size()
+		wsz := maxLineLen
+		if wsz > sw {
+			wsz = sw - 8
+		}
+		s = regexp.MustCompile("[ ]{4}").ReplaceAllString(s, "\t")
+		return softWrap(s, wsz, sh-6)
+	}
+
+	// maskRendered := func(old, new, s string) string {
+	// 	return regexp.MustCompile(old).ReplaceAllString(s, new)
+
+	// }
 
 	switch {
 	case wordFile != "":
@@ -356,7 +370,7 @@ func main() {
 	case quoteFile != "":
 		testFn = generateQuoteTest(quoteFile)
 	case !isatty.IsTerminal(os.Stdin.Fd()):
-		b, err := ioutil.ReadAll(os.Stdin)
+		b, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			panic(err)
 		}
@@ -411,32 +425,39 @@ func main() {
 	}
 
 	var tests [][]segment
-	var idx = 0
+	var exercise = 0
 
 	for {
-		if idx >= len(tests) {
+		if exercise >= len(tests) {
 			tests = append(tests, testFn())
 		}
 
-		if tests[idx] == nil {
+		if tests[exercise] == nil {
 			exit(0)
 		}
 
 		if !rawMode {
-			for i, _ := range tests[idx] {
-				tests[idx][i].Text = reflow(tests[idx][i].Text)
+			for i := range tests[exercise] {
+				tests[exercise][i].Text = reflow(tests[exercise][i].Text)
+			}
+		} else {
+			for i := range tests[exercise] {
+				masked := rawflow(tests[exercise][i].Text)
+				tests[exercise][i].SetRenderForm(masked)
+				spacesAsTabs := strings.ReplaceAll(tests[exercise][i].Text, "    ", "\t")
+				tests[exercise][i].SetContent(spacesAsTabs)
 			}
 		}
 
-		nerrs, ncorrect, t, rc, mistakes := typer.Start(tests[idx], time.Duration(timeout))
+		nerrs, ncorrect, t, rc, mistakes := typer.Start(tests[exercise], time.Duration(timeout), rawMode)
 		saveMistakes(mistakes)
 
 		switch rc {
 		case TyperNext:
-			idx++
+			exercise++
 		case TyperPrevious:
-			if idx > 0 {
-				idx--
+			if exercise > 0 {
+				exercise--
 			}
 		case TyperComplete:
 			cpm := int(float64(ncorrect) / (float64(t) / 60e9))
@@ -446,8 +467,8 @@ func main() {
 			results = append(results, result{wpm, cpm, accuracy, time.Now().Unix(), mistakes})
 			if !noReport {
 				attribution := ""
-				if len(tests[idx]) == 1 {
-					attribution = tests[idx][0].Attribution
+				if len(tests[exercise]) == 1 {
+					attribution = tests[exercise][0].Attribution
 				}
 				showReport(scr, cpm, wpm, accuracy, attribution, mistakes, typer.nextWordStyle)
 			}
@@ -455,8 +476,9 @@ func main() {
 				exit(0)
 			}
 
-			idx++
+			exercise++
 		case TyperSigInt:
+			//system call reset the terminal, so we need to reinitialize it
 			exit(1)
 
 		case TyperResize:

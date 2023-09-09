@@ -4,3 +4,8 @@ bin/
 *.swo
 tags
 .DS_Store
+.vscode
+.gitignore
+*breakpoints.json*
+*test.json*
+.gitignore
