@@ -329,7 +329,7 @@ func main() {
 
 	if versionFlag {
 		fmt.Fprintf(os.Stderr, "tt version 0.4.2\n")
-		os.Exit(1)
+		os.Exit(0)
 	}
 
 	if noTheme {
